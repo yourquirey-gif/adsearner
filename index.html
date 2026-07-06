@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GameRewarder Premium Panel</title>
+    <title>EarnRewarder Premium Panel</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -369,7 +369,7 @@
             adWatchReward: 10,
             paymentMethods: ["UPI", "Paytm"],
             referralBonus: 50,
-            announcement: "Welcome to GameRewarder Premium Dynamic Workspace!"
+            announcement: "Welcome to EarnRewarder Premium Dynamic Workspace!"
         };
 
         window.userData = {
@@ -384,6 +384,7 @@
             referrals: 0,
             referralCode: "",
             referredBy: null,
+            referralRewarded: false,
             joinDateString: "Processing...",
             completedTasks: []
         };
@@ -451,6 +452,7 @@ window.Telegram?.WebApp?.initDataUnsafe?.start_param || null;
 
             try {
                 const userSnapshot = await getDoc(userProfileReference);
+                const isNewUser = !userSnapshot.exists();
 
                 if (userSnapshot.exists()) {
                     const cloudData = userSnapshot.data();
@@ -483,26 +485,37 @@ window.Telegram?.WebApp?.initDataUnsafe?.start_param || null;
                         adsWatched: 0,
                         referrals: 0,
                         referralCode: generatedCode,
-                        referredBy: null,
                         completedTasks: [],
+                        referralRewarded: false,
                         lastActiveTime: serverTimestamp(),
                         createdAt: serverTimestamp()
                     });
                 }
                 // ===== Referral Count Update =====
-if (startParam) {
+if (
+    isNewUser &&
+    startParam &&
+    startParam !== uidStr
+) {
     try {
         const refUserRef = doc(db, "users", startParam);
         const refUserSnap = await getDoc(refUserRef);
+        if (!refUserSnap.exists()) return;
 
-        if (refUserSnap.exists() && startParam !== uidStr) {
+if (refUserSnap.exists()) {
             const refData = refUserSnap.data();
+          
 
             await updateDoc(refUserRef, {
     referrals: (refData.referrals || 0) + 1,
     balance: (refData.balance || 0) + (window.appConfig.referralBonus || 50),
     totalEarned: (refData.totalEarned || 0) + (window.appConfig.referralBonus || 50)
 });
+           await updateDoc(userProfileReference, {
+    referralRewarded: true
+});
+
+window.userData.referralRewarded = true;
         }
     } catch (err) {
         console.log("Referral Count Error:", err);
@@ -792,7 +805,7 @@ if (startParam) {
         };
         window.shareReferralCode = function() { 
             const referUrl = `https://t.me/earnrewardtgbot?startapp=${window.userData.uid}`;
-            navigator.clipboard.writeText("Join GameRewarder to collect high yield balances instantly! Link: " + referUrl); 
+            navigator.clipboard.writeText("Join EarnRewarder to collect high yield balances instantly! Link: " + referUrl); 
             window.showAlert("Invite deep link copied to clipboard completely."); 
         };
         
