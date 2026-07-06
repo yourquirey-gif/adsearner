@@ -798,11 +798,11 @@ window.userData.referralRewarded = true;
         };
         window.dismissAlert = function() { document.getElementById('custom-alert').classList.add('hidden'); };
         
-        window.copyReferralCode = function() { 
-            const referUrl = `const referUrl = `https://t.me/earnrewardtgbot/EarnReward?startapp=${userData.uid}`;${window.userData.uid}`;
-            navigator.clipboard.writeText(referUrl); 
-            window.showAlert("Unique referral link copied successfully."); 
-        };
+        window.copyReferralCode = function () {
+    const referUrl = `https://t.me/earnrewardtgbot?startapp=${window.userData.uid}`;
+    navigator.clipboard.writeText(referUrl);
+    window.showAlert("Unique referral link copied successfully.");
+};
         window.shareReferralCode = function() { 
             const referUrl = `https://t.me/earnrewardtgbot?startapp=${window.userData.uid}`;
             navigator.clipboard.writeText("Join EarnRewarder to collect high yield balances instantly! Link: " + referUrl); 
