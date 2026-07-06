@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GameRewarder Premium Panel</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #0b0b0e;
+            color: #ffffff;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .premium-card {
+            background: linear-gradient(145deg, #16161f, #121217);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+        .btn-premium-gold {
+            background: linear-gradient(180deg, #ffc700 0%, #e6ab00 100%);
+            color: #000000;
+            font-weight: 700;
+            box-shadow: 0 4px 15px rgba(255, 199, 0, 0.2);
+            transition: all 0.2s ease;
+        }
+        .btn-premium-gold:active {
+            transform: scale(0.98);
+        }
+        .nav-tab.active {
+            color: #ffc700;
+        }
+        .nav-tab.active i {
+            stroke: #ffc700;
+            filter: drop-shadow(0 0 4px rgba(255, 199, 0, 0.4));
+        }
+        .app-view {
+            display: none;
+        }
+        .app-view.active {
+            display: block;
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        input, select {
+            background-color: #1a1a24 !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            color: #ffffff !important;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #ffc700 !important;
+        }
+        .glass-modal {
+            background: rgba(22, 22, 31, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+    </style>
+</head>
+<body class="pb-28 max-w-md mx-auto min-h-screen relative flex flex-col justify-between">
+
+    <div id="auth-overlay" class="fixed inset-0 bg-[#0b0b0e] z-50 flex flex-col items-center justify-center p-6 text-center">
+        <div class="space-y-2 mb-8">
+            <span class="text-3xl font-extrabold tracking-tight text-white">Game<span class="text-[#ffc700]">Rewarder</span></span>
+            <p class="text-xs text-gray-400">Premium Earning Engine Platform</p>
+        </div>
+        <div id="telegram-login-container" class="premium-card p-6 rounded-2xl w-full max-w-xs space-y-4">
+            <p class="text-sm font-medium text-gray-300">Authenticate through Telegram to access your account</p>
+            <div class="flex justify-center py-2">
+                <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="YourMuskTasksBot" data-size="large" data-onauth="onTelegramAuth" data-request-access="write"></script>
+            </div>
+            <button id="btn-browser-bypass" onclick="triggerFallbackAuth()" class="w-full bg-white/5 border border-white/10 py-2.5 rounded-xl text-xs font-semibold text-gray-300 hidden">
+                Launch Browser Sandbox (Test Environment)
+            </button>
+        </div>
+    </div>
+
+    <div id="ad-loading-popup" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6">
+        <div class="glass-modal w-full max-w-xs p-6 rounded-2xl text-center space-y-4">
+            <div class="relative w-16 h-16 mx-auto">
+                <div class="absolute inset-0 rounded-full border-4 border-amber-500/20"></div>
+                <div class="absolute inset-0 rounded-full border-4 border-t-[#ffc700] animate-spin"></div>
+            </div>
+            <div class="space-y-1">
+                <h3 class="text-base font-bold text-white tracking-wide">Loading Premium Ad...</h3>
+                <p class="text-xs text-gray-400">Preparing system-allocated verification request node</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-loader" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+        <div class="animate-spin rounded-full h-10 w-10 border-2 border-t-amber-500 border-r-transparent border-b-transparent border-l-transparent"></div>
+    </div>
+
+    <div id="announcement-banner" class="hidden bg-gradient-to-r from-amber-500/10 to-amber-600/5 border-b border-amber-500/20 p-2.5 text-center text-xs font-medium text-[#ffc700]">
+        <span id="announcement-text"></span>
+    </div>
+
+    <header class="p-4 flex justify-between items-center bg-[#0b0b0e] sticky top-0 z-40 border-b border-white/[0.02]">
+        <div class="flex items-center gap-2.5">
+            <img id="header-user-avatar" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%231a1a24'/></svg>" class="w-9 h-9 rounded-full object-cover border border-white/10" alt="Avatar">
+            <div class="flex flex-col">
+                <span id="header-user-name" class="text-sm font-bold text-white truncate max-w-[120px]">Loading Profile...</span>
+                <span id="header-user-username" class="text-[10px] text-gray-400 font-medium truncate max-w-[100px]">@username</span>
+            </div>
+        </div>
+        <div class="bg-[#16161f] px-3 py-1.5 rounded-full border border-white/[0.04] flex items-center gap-1.5">
+            <span class="text-[#ffc700] font-bold text-sm">₹</span>
+            <span id="header-balance" class="font-bold text-sm text-white">0</span>
+        </div>
+    </header>
+
+    <main class="px-4 flex-grow">
+
+        <section id="view-home" class="app-view active space-y-5">
+            <div class="premium-card rounded-2xl p-5 relative overflow-hidden mt-2">
+                <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">Welcome back,</p>
+                <h3 id="dashboard-welcome-name" class="text-lg font-bold text-white mt-0.5">Premium Partner</h3>
+                
+                <div class="mt-6">
+                    <p class="text-[11px] text-gray-500 uppercase tracking-wider font-semibold">Current Balance</p>
+                    <div class="flex items-baseline gap-1 mt-1">
+                        <span class="text-3xl font-extrabold text-[#ffc700]">₹</span>
+                        <span id="dashboard-main-balance" class="text-4xl font-black text-white tracking-tight">0</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 mt-6 pt-4 border-t border-white/[0.04]">
+                    <div>
+                        <span id="stat-total-earned" class="block text-base font-bold text-emerald-400">₹0</span>
+                        <span class="text-[10px] text-gray-400 block mt-0.5">Total Earned</span>
+                    </div>
+                    <div>
+                        <span id="stat-ads-watched" class="block text-base font-bold text-blue-400">0</span>
+                        <span class="text-[10px] text-gray-400 block mt-0.5">Ads Watched</span>
+                    </div>
+                    <div>
+                        <span id="stat-referrals" class="block text-base font-bold text-purple-400">0</span>
+                        <span class="text-[10px] text-gray-400 block mt-0.5">Referrals</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <button id="btn-trigger-ad-watch" class="w-full btn-premium-gold py-4 rounded-xl flex items-center justify-center gap-2.5 text-base shadow-lg">
+                    <i data-lucide="play-circle" class="w-5 h-5"></i>
+                    Watch Ad & Earn Reward
+                </button>
+            </div>
+        </section>
+
+        <section id="view-tasks" class="app-view space-y-4">
+            <div class="premium-card rounded-2xl p-5 mt-2 space-y-1">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <i data-lucide="check-square" class="w-5 h-5 text-[#ffc700]"></i>
+                    Premium System Tasks
+                </h3>
+                <p class="text-xs text-gray-400">Complete standard system channel verifications below to release coin drops.</p>
+            </div>
+
+            <div id="tasks-system-list" class="space-y-3">
+                <p class="text-xs text-gray-500 text-center py-6">Checking active system configuration updates...</p>
+            </div>
+        </section>
+
+        <section id="view-refer" class="app-view space-y-5">
+            <div class="premium-card rounded-2xl p-6 text-center space-y-4 mt-2">
+                <div class="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto border border-amber-500/20">
+                    <i data-lucide="gift" class="w-8 h-8 text-[#ffc700]"></i>
+                </div>
+                <div class="space-y-1">
+                    <h2 class="text-xl font-bold text-white">Invite Friends</h2>
+                    <p id="referral-bonus-info" class="text-sm text-gray-400 px-4">Share your invite link below to claim dynamic coin balance expansions.</p>
+                </div>
+            </div>
+
+            <div class="premium-card rounded-xl p-4 space-y-3">
+                <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider block">Your Invitation Premium Deep Link</label>
+                <div class="flex gap-2">
+                    <div id="referral-link-display" class="flex-1 bg-[#1a1a24] border border-white/[0.06] rounded-xl flex items-center px-3 font-mono text-xs font-medium text-[#ffc700] truncate tracking-tight select-all">Loading link...</div>
+                    <button onclick="copyReferralCode()" class="bg-[#1a1a24] text-white px-4 rounded-xl border border-white/[0.08] flex items-center justify-center transition">
+                        <i data-lucide="copy" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <button onclick="shareReferralCode()" class="w-full btn-premium-gold py-3 rounded-xl flex items-center justify-center gap-2 text-sm mt-2">
+                    <i data-lucide="share-2" class="w-4 h-4"></i>
+                    Share Invite Link
+                </button>
+            </div>
+
+            <div class="premium-card rounded-xl p-4 space-y-4">
+                <div class="pt-2">
+                    <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-3">Claim Invitation Code</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="enter-referral-code" placeholder="Enter Friend's UID Code" class="flex-1 px-4 py-3 rounded-xl text-sm font-medium">
+                        <button onclick="handleApplyReferralCode()" class="bg-white text-black font-bold px-5 rounded-xl text-xs hover:bg-gray-200 transition">Apply</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="view-withdraw" class="app-view space-y-5">
+            <div class="premium-card rounded-2xl p-5 space-y-4 mt-2">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <i data-lucide="wallet" class="w-5 h-5 text-[#ffc700]"></i>
+                    Withdrawal Portal
+                </h3>
+
+                <div class="space-y-3 pt-1">
+                    <div class="flex items-center justify-between p-3 bg-white/[0.01] border border-white/[0.04] rounded-xl">
+                        <div class="flex items-center gap-3">
+                            <i data-lucide="circle-dollar-sign" class="w-4 h-4 text-[#ffc700]"></i>
+                            <div>
+                                <p class="text-xs font-semibold text-white">Minimum Payout Value</p>
+                                <p id="criteria-balance-text" class="text-[10px] text-gray-400">Loading limits...</p>
+                            </div>
+                        </div>
+                        <div id="criteria-balance-icon"><i data-lucide="help-circle" class="w-4 h-4 text-gray-600"></i></div>
+                    </div>
+
+                    <div class="flex items-center justify-between p-3 bg-white/[0.01] border border-white/[0.04] rounded-xl">
+                        <div class="flex items-center gap-3">
+                            <i data-lucide="users-2" class="w-4 h-4 text-purple-400"></i>
+                            <div>
+                                <p class="text-xs font-semibold text-white">Referral Verification Rule</p>
+                                <p id="criteria-referrals-text" class="text-[10px] text-gray-400">Requires minimum 2 successful invitations</p>
+                            </div>
+                        </div>
+                        <div id="criteria-referrals-icon"><i data-lucide="help-circle" class="w-4 h-4 text-gray-600"></i></div>
+                    </div>
+                </div>
+
+                <div class="space-y-3 pt-2">
+                    <div>
+                        <label class="text-xs font-medium text-gray-400 block mb-1.5">Payout System Protocol</label>
+                        <select id="withdraw-method" class="w-full p-3 rounded-xl text-sm font-medium"></select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-medium text-gray-400 block mb-1.5">Address / Credentials Node Destination</label>
+                        <div id="payment-details-container"></div>
+                    </div>
+                    <div>
+                        <label class="text-xs font-medium text-gray-400 block mb-1.5">Amount to Payout</label>
+                        <input type="number" id="withdraw-amount" placeholder="Enter payout amount" class="w-full p-3 rounded-xl text-sm font-semibold">
+                    </div>
+
+                    <button id="btn-action-withdraw" onclick="handleWithdrawal()" class="w-full btn-premium-gold py-3.5 rounded-xl text-sm font-bold mt-2 flex items-center justify-center gap-2">
+                        <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                        Request Withdrawal Action
+                    </button>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <p class="text-xs uppercase tracking-widest text-gray-500 font-bold px-1">Your Payout Request Logs</p>
+                <div id="withdrawal-history-list" class="space-y-2.5">
+                    <p class="text-xs text-gray-500 text-center py-4">No logged withdrawal workflows detected yet.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="view-profile" class="app-view space-y-4">
+            <div class="premium-card rounded-2xl p-6 text-center space-y-3 mt-2 flex flex-col items-center">
+                <img id="profile-pane-avatar" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%231a1a24'/></svg>" class="w-20 h-20 rounded-full object-cover border-2 border-[#ffc700] shadow-lg" alt="Avatar">
+                <div>
+                    <h3 id="profile-pane-name" class="text-lg font-bold text-white">Partner Name</h3>
+                    <p id="profile-pane-username" class="text-xs text-[#ffc700] font-medium">@username</p>
+                </div>
+            </div>
+
+            <div class="premium-card rounded-xl p-4 space-y-3.5 text-xs font-medium">
+                <div class="flex justify-between items-center py-2 border-b border-white/[0.03]">
+                    <span class="text-gray-400">Telegram ID</span>
+                    <span id="profile-stat-tgid" class="text-white font-mono font-bold">N/A</span>
+                </div>
+                <div class="flex justify-between items-center py-2 border-b border-white/[0.03]">
+                    <span class="text-gray-400">User UID Node</span>
+                    <span id="profile-stat-uid" class="text-white font-mono text-[11px] truncate max-w-[180px]">N/A</span>
+                </div>
+                <div class="flex justify-between items-center py-2 border-b border-white/[0.03]">
+                    <span class="text-gray-400">Registry Join Date</span>
+                    <span id="profile-stat-joindate" class="text-white font-semibold">Loading...</span>
+                </div>
+                <div class="flex justify-between items-center py-2 border-b border-white/[0.03]">
+                    <span class="text-gray-400">Current Vault Balance</span>
+                    <span id="profile-stat-balance" class="text-[#ffc700] font-bold">₹0</span>
+                </div>
+                <div class="flex justify-between items-center py-2 border-b border-white/[0.03]">
+                    <span class="text-gray-400">Total Ads Logged</span>
+                    <span id="profile-stat-ads" class="text-blue-400 font-bold">0</span>
+                </div>
+                <div class="flex justify-between items-center py-2">
+                    <span class="text-gray-400">Total Yield Earnings</span>
+                    <span id="profile-stat-earnings" class="text-emerald-400 font-bold">₹0</span>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#0b0b0e]/95 backdrop-blur-md border-t border-white/[0.04] px-4 py-3 flex justify-around items-center z-40">
+        <button onclick="switchTab('home')" id="tab-home" class="nav-tab active flex flex-col items-center gap-1.5 text-gray-500 transition flex-1">
+            <i data-lucide="home" class="w-5 h-5"></i>
+            <span class="text-[9px] font-semibold tracking-wide">Home</span>
+        </button>
+        <button onclick="switchTab('tasks')" id="tab-tasks" class="nav-tab flex flex-col items-center gap-1.5 text-gray-500 transition flex-1">
+            <i data-lucide="check-square" class="w-5 h-5"></i>
+            <span class="text-[9px] font-semibold tracking-wide">Tasks</span>
+        </button>
+        <button onclick="switchTab('refer')" id="tab-refer" class="nav-tab flex flex-col items-center gap-1.5 text-gray-500 transition flex-1">
+            <i data-lucide="users" class="w-5 h-5"></i>
+            <span class="text-[9px] font-semibold tracking-wide">Refer</span>
+        </button>
+        <button onclick="switchTab('withdraw')" id="tab-withdraw" class="nav-tab flex flex-col items-center gap-1.5 text-gray-500 transition flex-1">
+            <i data-lucide="banknote" class="w-5 h-5"></i>
+            <span class="text-[9px] font-semibold tracking-wide">Payout</span>
+        </button>
+        <button onclick="switchTab('profile')" id="tab-profile" class="nav-tab flex flex-col items-center gap-1.5 text-gray-500 transition flex-1">
+            <i data-lucide="user" class="w-5 h-5"></i>
+            <span class="text-[9px] font-semibold tracking-wide">Profile</span>
+        </button>
+    </nav>
+
+    <div id="custom-alert" class="hidden fixed bottom-24 left-4 right-4 max-w-sm mx-auto bg-[#16161f] border border-white/[0.08] p-4 rounded-xl shadow-2xl flex items-start gap-3 z-50">
+        <div class="p-1 bg-amber-500/10 rounded-lg border border-amber-500/20 mt-0.5">
+            <i data-lucide="bell" class="w-4 h-4 text-[#ffc700]"></i>
+        </div>
+        <div class="flex-1">
+            <h4 class="text-xs font-bold text-white uppercase tracking-wider">Platform Notification</h4>
+            <p id="custom-alert-msg" class="text-xs text-gray-300 mt-1 leading-relaxed"></p>
+        </div>
+        <button onclick="dismissAlert()" class="text-gray-500 hover:text-white transition">
+            <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, addDoc, query, where, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyASbVOB286X7z19lfP4nav0abKDxZ4CBBg",
+            authDomain: "earn-b323d.firebaseapp.com",
+            projectId: "earn-b323d",
+            storageBucket: "earn-b323d.firebasestorage.app",
+            messagingSenderId: "624824485092",
+            appId: "1:624824485092:web:373f684424c5eb8baf98f1"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Global State Objects
+        window.appConfig = {
+            minWithdrawal: 500,
+            adWatchReward: 10,
+            paymentMethods: ["UPI", "Paytm"],
+            referralBonus: 50,
+            announcement: "Welcome to GameRewarder Premium Dynamic Workspace!"
+        };
+
+        window.userData = {
+            uid: "",
+            name: "",
+            username: "",
+            tgId: "",
+            photoUrl: "",
+            balance: 0,
+            totalEarned: 0,
+            adsWatched: 0,
+            referrals: 0,
+            referralCode: "",
+            referredBy: null,
+            joinDateString: "Processing...",
+            completedTasks: []
+        };
+
+        let activeWithdrawalListenerUnsubscribe = null;
+        let activeTasksListenerUnsubscribe = null;
+
+        // Declared exactly once globally as required
+        window.AdController = null;
+
+        window.onload = () => {
+            try {
+                if (window.Adsgram) {
+                    window.AdController = window.Adsgram.init({
+                        blockId: "37369"
+                    });
+                }
+            } catch (err) {
+                console.error("AdsGram setup initialization failure:", err);
+            }
+
+            lucide.createIcons();
+            setupEventListeners();
+            initializeAppContainer();
+        };
+
+        function setupEventListeners() {
+            document.getElementById('btn-trigger-ad-watch').addEventListener('click', window.triggerPremiumAdSequence);
+        }
+
+        function initializeRealtimeConfigSync() {
+            onSnapshot(doc(db, "config", "main"), (snapshot) => {
+                if (snapshot.exists()) {
+                    window.appConfig = { ...window.appConfig, ...snapshot.data() };
+                    
+                    const banner = document.getElementById('announcement-banner');
+                    if (window.appConfig.announcement) {
+                        document.getElementById('announcement-text').textContent = window.appConfig.announcement;
+                        banner.classList.remove('hidden');
+                    } else {
+                        banner.classList.add('hidden');
+                    }
+                    window.updateAllUI();
+                }
+            });
+        }
+
+        window.onTelegramAuth = async function(tgUser) {
+            if (!tgUser || !tgUser.id) {
+                document.getElementById('app-loader').classList.add('hidden');
+                return;
+            }
+            
+            document.getElementById('app-loader').classList.remove('hidden');
+            const uidStr = `TG-${tgUser.id}`;
+            const userProfileReference = doc(db, "users", uidStr);
+
+            window.userData.uid = uidStr;
+            window.userData.tgId = tgUser.id;
+            window.userData.name = tgUser.first_name || "Telegram User";
+            window.userData.username = tgUser.username ? `@${tgUser.username}` : "@User";
+            window.userData.photoUrl = tgUser.photo_url || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%231a1a24'/></svg>";
+
+            try {
+                const userSnapshot = await getDoc(userProfileReference);
+
+                if (userSnapshot.exists()) {
+                    const cloudData = userSnapshot.data();
+                    window.userData = { ...window.userData, ...cloudData };
+                    
+                    if (cloudData.createdAt) {
+                        window.userData.joinDateString = new Date(cloudData.createdAt.seconds * 1000).toLocaleDateString();
+                    }
+                    await updateDoc(userProfileReference, { 
+                        lastActiveTime: serverTimestamp(),
+                        name: window.userData.name,
+                        username: window.userData.username,
+                        photoUrl: window.userData.photoUrl
+                    });
+                } else {
+                    const generatedCode = "GR" + Math.floor(1000 + Math.random() * 9000);
+                    window.userData.referralCode = generatedCode;
+                    window.userData.joinDateString = new Date().toLocaleDateString();
+                    window.userData.completedTasks = [];
+
+                    await setDoc(userProfileReference, {
+                        uid: uidStr,
+                        name: window.userData.name,
+                        username: window.userData.username,
+                        tgId: window.userData.tgId,
+                        photoUrl: window.userData.photoUrl,
+                        balance: 0,
+                        totalEarned: 0,
+                        adsWatched: 0,
+                        referrals: 0,
+                        referralCode: generatedCode,
+                        referredBy: null,
+                        completedTasks: [],
+                        lastActiveTime: serverTimestamp(),
+                        createdAt: serverTimestamp()
+                    });
+                }
+
+                // Instantly remove overlay curtain
+                document.getElementById('auth-overlay').classList.add('hidden');
+                document.getElementById('app-loader').classList.add('hidden');
+                
+                initializeRealtimeConfigSync();
+                window.updateAllUI();
+                window.setupRealtimeWithdrawalLogs();
+                window.setupRealtimeTasksList();
+            } catch (err) {
+                console.error("Auth syncing issue:", err);
+                document.getElementById('app-loader').classList.add('hidden');
+                window.showAlert("Sync Error: " + err.message);
+            }
+        };
+
+        window.updateAllUI = function() {
+            document.getElementById('header-user-avatar').src = window.userData.photoUrl;
+            document.getElementById('header-user-name').textContent = window.userData.name;
+            document.getElementById('header-user-username').textContent = window.userData.username;
+
+            document.getElementById('header-balance').textContent = window.userData.balance;
+            document.getElementById('dashboard-main-balance').textContent = window.userData.balance;
+            document.getElementById('dashboard-welcome-name').textContent = window.userData.name;
+            document.getElementById('stat-total-earned').textContent = `₹${window.userData.totalEarned}`;
+            document.getElementById('stat-ads-watched').textContent = window.userData.adsWatched;
+            document.getElementById('stat-referrals').textContent = window.userData.referrals;
+
+            document.getElementById('profile-pane-avatar').src = window.userData.photoUrl;
+            document.getElementById('profile-pane-name').textContent = window.userData.name;
+            document.getElementById('profile-pane-username').textContent = window.userData.username;
+            document.getElementById('profile-stat-tgid').textContent = window.userData.tgId || "N/A";
+            document.getElementById('profile-stat-uid').textContent = window.userData.uid || "N/A";
+            document.getElementById('profile-stat-joindate').textContent = window.userData.joinDateString;
+            document.getElementById('profile-stat-balance').textContent = `₹${window.userData.balance}`;
+            document.getElementById('profile-stat-ads').textContent = window.userData.adsWatched;
+            document.getElementById('profile-stat-earnings').textContent = `₹${window.userData.totalEarned}`;
+
+            document.getElementById('criteria-balance-text').textContent = `Current: ₹${window.userData.balance} / Required: ₹${window.appConfig.minWithdrawal}`;
+            
+            const balanceConditionMet = window.userData.balance >= window.appConfig.minWithdrawal;
+            document.getElementById('criteria-balance-icon').innerHTML = balanceConditionMet 
+                ? `<i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400"></i>` 
+                : `<i data-lucide="x-circle" class="w-5 h-5 text-rose-500"></i>`;
+
+            const referralConditionMet = window.userData.referrals >= 2;
+            document.getElementById('criteria-referrals-icon').innerHTML = referralConditionMet 
+                ? `<i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400"></i>` 
+                : `<i data-lucide="x-circle" class="w-5 h-5 text-rose-500"></i>`;
+
+            lucide.createIcons();
+        };
+
+        window.setupRealtimeTasksList = function() {
+            if (activeTasksListenerUnsubscribe) activeTasksListenerUnsubscribe();
+            
+            activeTasksListenerUnsubscribe = onSnapshot(collection(db, "tasks"), (snapshot) => {
+                const taskContainer = document.getElementById('tasks-system-list');
+                if(snapshot.empty) {
+                    taskContainer.innerHTML = `<p class="text-xs text-gray-500 text-center py-6">No tasks published inside admin collections nodes.</p>`;
+                    return;
+                }
+
+                let tasksMarkup = "";
+                snapshot.forEach(docObj => {
+                    const task = docObj.data();
+                    const taskId = docObj.id;
+                    const taskReward = task.rewardAmount || 0;
+                    const hasCompleted = window.userData.completedTasks && window.userData.completedTasks.includes(taskId);
+
+                    tasksMarkup += `
+                        <div class="premium-card p-4 rounded-xl flex flex-col space-y-3">
+                            <div class="flex justify-between items-start">
+                                <div class="space-y-0.5">
+                                    <h4 class="text-sm font-bold text-white">${task.channelName || "Telegram Channel Task"}</h4>
+                                    <p class="text-xs text-emerald-400 font-semibold">+₹${taskReward} Bounty Reward</p>
+                                </div>
+                                ${hasCompleted ? 
+                                    `<span class="text-[10px] font-bold uppercase text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">Completed</span>` : 
+                                    `<span class="text-[10px] font-bold uppercase text-amber-400 bg-amber-500/10 px-2 py-1 rounded">Active</span>`
+                                }
+                            </div>
+                            <div class="flex gap-2.5 pt-1">
+                                <a href="${task.channelUrl || '#'}" target="_blank" class="flex-1 bg-white/5 border border-white/10 text-center py-2 rounded-lg text-xs font-bold text-white block">
+                                    Join Channel
+                                </a>
+                                <button onclick="verifySystemTask('${taskId}', ${taskReward})" ${hasCompleted ? 'disabled' : ''} class="flex-1 ${hasCompleted ? 'bg-gray-800 text-gray-500' : 'btn-premium-gold'} text-center py-2 rounded-lg text-xs font-bold">
+                                    ${hasCompleted ? 'Verified' : 'Verify'}
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                taskContainer.innerHTML = tasksMarkup;
+                lucide.createIcons();
+            });
+        };
+
+        window.verifySystemTask = async function(taskId, rewardVal) {
+            if (window.userData.completedTasks && window.userData.completedTasks.includes(taskId)) return;
+
+            document.getElementById('app-loader').classList.remove('hidden');
+            setTimeout(async () => {
+                try {
+                    if (!window.userData.completedTasks) window.userData.completedTasks = [];
+                    window.userData.completedTasks.push(taskId);
+                    
+                    window.userData.balance += parseInt(rewardVal) || 0;
+                    window.userData.totalEarned += parseInt(rewardVal) || 0;
+
+                    await updateDoc(doc(db, "users", window.userData.uid), {
+                        balance: window.userData.balance,
+                        totalEarned: window.userData.totalEarned,
+                        completedTasks: window.userData.completedTasks
+                    });
+
+                    window.showAlert(`Task verification successful! +₹${rewardVal} credited.`);
+                    window.updateAllUI();
+                } catch(err) {
+                    window.showAlert("Verification payload updating error: " + err.message);
+                } finally {
+                    document.getElementById('app-loader').classList.add('hidden');
+                }
+            }, 2000);
+        };
+
+        window.setupRealtimeWithdrawalLogs = function() {
+            if (activeWithdrawalListenerUnsubscribe) activeWithdrawalListenerUnsubscribe();
+            const queryRef = query(collection(db, "withdrawals"), where("userId", "==", window.userData.uid));
+            activeWithdrawalListenerUnsubscribe = onSnapshot(queryRef, (snapshot) => {
+                const logsContainer = document.getElementById('withdrawal-history-list');
+                if (snapshot.empty) {
+                    logsContainer.innerHTML = `<p class="text-xs text-gray-500 text-center py-4">No logged withdrawal workflows detected yet.</p>`;
+                    return;
+                }
+                let sortedDocs = [];
+                snapshot.forEach(doc => { sortedDocs.push({ id: doc.id, ...doc.data() }); });
+                sortedDocs.sort((a, b) => (b.requestedAt?.seconds || 0) - (a.requestedAt?.seconds || 0));
+
+                logsContainer.innerHTML = sortedDocs.map(log => {
+                    let statusColor = "text-amber-400";
+                    if (log.status === "approved") statusColor = "text-emerald-400";
+                    if (log.status === "declined" || log.status === "rejected") statusColor = "text-rose-500";
+                    const dateString = log.requestedAt ? new Date(log.requestedAt.seconds * 1000).toLocaleDateString() : "Processing...";
+                    return `
+                        <div class="premium-card p-4 rounded-xl flex justify-between items-center">
+                            <div class="space-y-0.5">
+                                <p class="text-sm font-bold text-white">₹${log.amount} — ${log.method}</p>
+                                <p class="text-[10px] text-gray-400 truncate max-w-[200px] font-mono">${log.paymentDetail}</p>
+                                <p class="text-[9px] text-gray-500 font-medium">Request Date: ${dateString}</p>
+                            </div>
+                            <span class="text-xs font-bold uppercase tracking-wider ${statusColor}">${log.status}</span>
+                        </div>
+                    `;
+                }).join('');
+                lucide.createIcons();
+            });
+        };
+
+        // Fully Restored and Optimized AdsGram SDK Earning Verification Lifecycle Trigger
+        window.triggerPremiumAdSequence = async function() {
+            if (!window.AdController) {
+                return window.showAlert("Ads SDK is syncing. Please wait a moment.");
+            }
+
+            const popupElement = document.getElementById('ad-loading-popup');
+            popupElement.classList.remove('hidden');
+
+            try {
+                await window.AdController.show();
+                popupElement.classList.add('hidden');
+
+                const rewardDeltaValue = parseInt(window.appConfig.adWatchReward) || 10;
+                window.userData.balance += rewardDeltaValue;
+                window.userData.totalEarned += rewardDeltaValue;
+                window.userData.adsWatched += 1;
+
+                await updateDoc(doc(db, "users", window.userData.uid), {
+                    balance: window.userData.balance,
+                    totalEarned: window.userData.totalEarned,
+                    adsWatched: window.userData.adsWatched
+                });
+
+                window.updateAllUI();
+                window.showAlert(`Premium Ad View Complete! Reward dropped: +₹${rewardDeltaValue}`);
+            } catch (adError) {
+                popupElement.classList.add('hidden');
+                console.warn("AdsGram interface skipped/closed or exception:", adError);
+                window.showAlert("Ad display interrupted or skipped. No tracking rewards were credited.");
+            }
+        };
+
+        window.handleApplyReferralCode = async function() {
+            const enteredCodeStr = document.getElementById('enter-referral-code').value.trim();
+            if (!enteredCodeStr || enteredCodeStr === window.userData.uid) return window.showAlert("Invalid code application target payload.");
+            window.showAlert("Referral connection token processed.");
+        };
+
+        window.handleWithdrawal = async function() {
+            const contextRequestedValueAmount = parseInt(document.getElementById('withdraw-amount').value);
+            const contextSelectedPayoutMethod = document.getElementById('withdraw-method').value;
+            const contextInputPaymentAddressNode = document.querySelector('#payment-details-container input')?.value.trim();
+
+            if (!contextRequestedValueAmount || isNaN(contextRequestedValueAmount)) return window.showAlert("Please specify a valid numeric amount.");
+            if (window.userData.balance < window.appConfig.minWithdrawal) {
+                return window.showAlert(`Withdrawal denied: Minimum target limit is ₹${window.appConfig.minWithdrawal}.`);
+            }
+            if (window.userData.referrals < 2) {
+                return window.showAlert("Withdrawal locked: Minimum of 2 active successful referrals required.");
+            }
+            if (contextRequestedValueAmount > window.userData.balance) return window.showAlert("Insufficient account balance resource allocation.");
+            if (!contextInputPaymentAddressNode) return window.showAlert("Target payout path address info field parameter is missing.");
+
+            document.getElementById('app-loader').classList.remove('hidden');
+            try {
+                window.userData.balance -= contextRequestedValueAmount;
+                await updateDoc(doc(db, "users", window.userData.uid), { balance: window.userData.balance });
+                await addDoc(collection(db, "withdrawals"), {
+                    userId: window.userData.uid,
+                    userName: window.userData.name,
+                    amount: contextRequestedValueAmount,
+                    method: contextSelectedPayoutMethod,
+                    paymentDetail: contextInputPaymentAddressNode,
+                    status: "pending",
+                    requestedAt: serverTimestamp()
+                });
+                window.showAlert("Withdrawal request recorded dynamically.");
+                window.updateAllUI();
+                document.getElementById('withdraw-amount').value = "";
+            } catch (err) {
+                window.showAlert("Transaction error: " + err.message);
+            } finally {
+                document.getElementById('app-loader').classList.add('hidden');
+            }
+        };
+
+        window.switchTab = function(targetViewId) {
+            document.querySelectorAll('.app-view').forEach(view => view.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
+            const targetedViewElement = document.getElementById(`view-${targetViewId}`);
+            const targetedTabElement = document.getElementById(`tab-${targetViewId}`);
+            if (targetedViewElement && targetedTabElement) {
+                targetedViewElement.classList.add('active');
+                targetedTabElement.classList.add('active');
+            }
+            if (targetViewId === 'refer') {
+                const referUrl = `https://t.me/earnrewardtgbot/EarnReward?startapp=${window.userData.uid}`;
+                document.getElementById('referral-link-display').textContent = referUrl;
+                document.getElementById('referral-bonus-info').textContent = `Invite friends using your premium link to secure dynamic yield balances matching config parameters!`;
+            }
+            if (targetViewId === 'withdraw') {
+                const selectorChannelMethodElement = document.getElementById('withdraw-method');
+                const methodsArr = window.appConfig.paymentMethods || ["UPI", "Paytm"];
+                selectorChannelMethodElement.innerHTML = methodsArr.map(ch => `<option value="${ch}">${ch}</option>`).join('');
+                const interactiveContainerTargetInputBox = document.getElementById('payment-details-container');
+                const updateDynamicAddressPlaceholder = () => {
+                    const selVal = selectorChannelMethodElement.value.toLowerCase();
+                    let descText = "Enter destination address info";
+                    if (selVal.includes('upi')) descText = "Enter UPI target handle (e.g., walletID@paytm)";
+                    if (selVal.includes('paytm')) descText = "Enter 10-digit registered mobile number";
+                    interactiveContainerTargetInputBox.innerHTML = `<input type="text" placeholder="${descText}" class="w-full p-3 rounded-xl text-sm font-medium">`;
+                };
+                selectorChannelMethodElement.addEventListener('change', updateDynamicAddressPlaceholder);
+                updateDynamicAddressPlaceholder();
+                window.updateAllUI();
+            }
+        };
+
+        window.showAlert = function(msg) {
+            const box = document.getElementById('custom-alert');
+            document.getElementById('custom-alert-msg').textContent = msg;
+            box.classList.remove('hidden');
+            setTimeout(window.dismissAlert, 3000);
+        };
+        window.dismissAlert = function() { document.getElementById('custom-alert').classList.add('hidden'); };
+        
+        window.copyReferralCode = function() { 
+            const referUrl = `https://t.me/earnrewardtgbot/EarnReward?startapp=${window.userData.uid}`;
+            navigator.clipboard.writeText(referUrl); 
+            window.showAlert("Unique referral link copied successfully."); 
+        };
+        window.shareReferralCode = function() { 
+            const referUrl = `https://t.me/earnrewardtgbot/EarnReward?startapp=${window.userData.uid}`;
+            navigator.clipboard.writeText("Join GameRewarder to collect high yield balances instantly! Link: " + referUrl); 
+            window.showAlert("Invite deep link copied to clipboard completely."); 
+        };
+        
+        window.triggerFallbackAuth = function() {
+            window.onTelegramAuth({ id: 987654321, first_name: "Premium Sandbox Node", username: "premium_partner_test" });
+        };
+
+        function initializeAppContainer() {
+            try {
+                // Ensure Telegram WebApp context is active
+                if (window.Telegram && window.Telegram.WebApp) {
+                    const tgWebAppInstance = window.Telegram.WebApp;
+                    tgWebAppInstance.ready();
+                    tgWebAppInstance.expand();
+
+                    // Absolute safe checking of parameters to prevent infinite loops inside webview
+                    if (tgWebAppInstance.initDataUnsafe && tgWebAppInstance.initDataUnsafe.user && tgWebAppInstance.initDataUnsafe.user.id) {
+                        window.onTelegramAuth(tgWebAppInstance.initDataUnsafe.user);
+                        return;
+                    }
+                }
+                
+                // Fallback state indicators if loaded outside TG (e.g. Chrome browser)
+                document.getElementById('app-loader').classList.add('hidden');
+                document.getElementById('btn-browser-bypass').classList.remove('hidden');
+                
+            } catch (err) {
+                console.error("Initialization error execution context:", err);
+                document.getElementById('app-loader').classList.add('hidden');
+                document.getElementById('btn-browser-bypass').classList.remove('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
