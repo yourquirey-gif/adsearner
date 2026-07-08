@@ -133,20 +133,29 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-3 gap-2 mt-6 pt-4 border-t border-white/[0.04]">
-                    <div>
-                        <span id="stat-total-earned" class="block text-base font-bold text-emerald-400">₹0</span>
-                        <span class="text-[10px] text-gray-400 block mt-0.5">Total Earned</span>
-                    </div>
-                    <div>
-                        <span id="stat-ads-watched" class="block text-base font-bold text-blue-400">0</span>
-                        <span class="text-[10px] text-gray-400 block mt-0.5">Ads Watched</span>
-                    </div>
-                    <div>
-                        <span id="stat-referrals" class="block text-base font-bold text-purple-400">0</span>
-                        <span class="text-[10px] text-gray-400 block mt-0.5">Referrals</span>
-                    </div>
-                </div>
+                <div class="grid grid-cols-4 gap-2 mt-6 pt-4 border-t border-white/[0.04]">
+
+    <div>
+        <span id="stat-total-earned" class="block text-base font-bold text-emerald-400">₹0</span>
+        <span class="text-[10px] text-gray-400 block mt-0.5">Total Earned</span>
+    </div>
+
+    <div>
+        <span id="stat-ads-watched" class="block text-base font-bold text-blue-400">0</span>
+        <span class="text-[10px] text-gray-400 block mt-0.5">Total Ads</span>
+    </div>
+
+    <div>
+        <span id="stat-today-ads" class="block text-base font-bold text-amber-400">0</span>
+        <span class="text-[10px] text-gray-400 block mt-0.5">Today's Ads</span>
+    </div>
+
+    <div>
+        <span id="stat-referrals" class="block text-base font-bold text-purple-400">0</span>
+        <span class="text-[10px] text-gray-400 block mt-0.5">Referrals</span>
+    </div>
+
+</div>
             </div>
 
             <div class="space-y-4">
@@ -381,6 +390,8 @@
             balance: 0,
             totalEarned: 0,
             adsWatched: 0,
+            todayAdsWatched: 0,
+            lastAdsDate: "",
             referrals: 0,
             referralCode: "",
             referredBy: null,
@@ -457,6 +468,19 @@ window.Telegram?.WebApp?.initDataUnsafe?.start_param || null;
                 if (userSnapshot.exists()) {
                     const cloudData = userSnapshot.data();
                     window.userData = { ...window.userData, ...cloudData };
+                    const today = new Date().toISOString().split("T")[0];
+
+if (window.userData.lastAdsDate !== today) {
+
+    window.userData.lastAdsDate = today;
+    window.userData.todayAdsWatched = 0;
+
+    await updateDoc(userProfileReference, {
+        lastAdsDate: today,
+        todayAdsWatched: 0
+    });
+
+}
                     
                     if (cloudData.createdAt) {
                         window.userData.joinDateString = new Date(cloudData.createdAt.seconds * 1000).toLocaleDateString();
@@ -483,6 +507,8 @@ window.Telegram?.WebApp?.initDataUnsafe?.start_param || null;
                         balance: 0,
                         totalEarned: 0,
                         adsWatched: 0,
+                        todayAdsWatched: 0,
+                        lastAdsDate: new Date().toISOString().split("T")[0],
                         referrals: 0,
                         referralCode: generatedCode,
                         completedTasks: [],
@@ -538,6 +564,12 @@ window.userData.referralRewarded = true;
         };
 
         window.updateAllUI = function() {
+            const today = new Date().toISOString().split("T")[0];
+
+if (window.userData.lastAdsDate !== today) {
+    window.userData.lastAdsDate = today;
+    window.userData.todayAdsWatched = 0;
+}
             document.getElementById('header-user-avatar').src = window.userData.photoUrl;
             document.getElementById('header-user-name').textContent = window.userData.name;
             document.getElementById('header-user-username').textContent = window.userData.username;
@@ -547,6 +579,7 @@ window.userData.referralRewarded = true;
             document.getElementById('dashboard-welcome-name').textContent = window.userData.name;
             document.getElementById('stat-total-earned').textContent = `₹${window.userData.totalEarned}`;
             document.getElementById('stat-ads-watched').textContent = window.userData.adsWatched;
+            document.getElementById('stat-today-ads').textContent = window.userData.todayAdsWatched;
             document.getElementById('stat-referrals').textContent = window.userData.referrals;
 
             document.getElementById('profile-pane-avatar').src = window.userData.photoUrl;
@@ -698,12 +731,22 @@ window.userData.referralRewarded = true;
                 window.userData.balance += rewardDeltaValue;
                 window.userData.totalEarned += rewardDeltaValue;
                 window.userData.adsWatched += 1;
+                const today = new Date().toISOString().split("T")[0];
 
-                await updateDoc(doc(db, "users", window.userData.uid), {
-                    balance: window.userData.balance,
-                    totalEarned: window.userData.totalEarned,
-                    adsWatched: window.userData.adsWatched
-                });
+if (window.userData.lastAdsDate !== today) {
+    window.userData.lastAdsDate = today;
+    window.userData.todayAdsWatched = 0;
+}
+
+window.userData.todayAdsWatched += 1;
+
+                aawait updateDoc(doc(db, "users", window.userData.uid), {
+    balance: window.userData.balance,
+    totalEarned: window.userData.totalEarned,
+    adsWatched: window.userData.adsWatched,
+    todayAdsWatched: window.userData.todayAdsWatched,
+    lastAdsDate: window.userData.lastAdsDate
+});
 
                 window.updateAllUI();
                 window.showAlert(`Premium Ad View Complete! Reward dropped: +₹${rewardDeltaValue}`);
